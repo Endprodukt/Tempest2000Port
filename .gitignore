@@ -2,3 +2,11 @@ build/
 __pycache__/
 # fetched, not part of this project: see BUILD.md
 reference/
+# videos never go to GitHub
+*.mp4
+*.mkv
+*.avi
+*.mov
+*.webm
+*.wmv
+*.m4v
