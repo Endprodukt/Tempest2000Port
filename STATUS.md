@@ -159,3 +159,5 @@ Technik:
 
 - Weitergabe: Die Originaldaten bleiben im Paket, kein Umweg über das ROM des Nutzers.
 - Es zählt der Tempest-2000-Modus (neue Level, neue Formen), nicht Tempest Classic.
+
+GitHub-Release (2026-10-19): `v0.2.4` mit demselben Paket wie im Google-Drive-Ordner `games`. Bei jedem neuen Paket im Drive auch ein Release anlegen (`gh release create v<version> <paket>.vpk`).
