@@ -167,4 +167,4 @@ Technik:
 - Weitergabe: Die Originaldaten bleiben im Paket, kein Umweg über das ROM des Nutzers.
 - Es zählt der Tempest-2000-Modus (neue Level, neue Formen), nicht Tempest Classic.
 
-GitHub-Release (2026-10-19): `v0.2.4` mit demselben Paket wie im Google-Drive-Ordner `games`. 2026-11-08: `v0.3.0` (Beastly als Spielart, eigene Bestenliste je Spielart, Musik als SDK-Stream, Level-Ende nach `r_obj`); dieses Paket liegt nur auf GitHub, nicht im Drive. Bei jedem neuen Paket im Drive auch ein Release anlegen (`gh release create v<version> <paket>.vpk`).
+GitHub-Release (2026-10-19): `v0.2.4` mit demselben Paket wie im Google-Drive-Ordner `games`. 2026-11-08: `v0.3.0` (Beastly als Spielart, eigene Bestenliste je Spielart, Musik als SDK-Stream, Level-Ende nach `r_obj`); dieses Paket liegt nur auf GitHub, nicht im Drive. Seit 2026-11-08 ist das Repository öffentlich (Nutzerentscheidung, mit den extrahierten Atari-Daten und der vollen Ausgabe am Release). Bei jedem neuen Paket im Drive auch ein Release anlegen (`gh release create v<version> <paket>.vpk`).
