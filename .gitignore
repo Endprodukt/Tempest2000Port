@@ -10,3 +10,8 @@ reference/
 *.webm
 *.wmv
 *.m4v
+# Atari's data, made from the original by tools/extract_data.py and
+# tools/extract_audio.py: never on GitHub (BUILD.md)
+assets/sounds/
+assets/music/
+src/gen/t2k_data.c
