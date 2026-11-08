@@ -96,6 +96,8 @@ typedef int fix;                        /* 16.16 */
 #define MENU_TIMEOUT     (20 * 60)      /* a menu left alone goes on by itself */
 #define ATTRACT_PAGE     250            /* versionscreen: 'attime' */
 #define TITLE_FRAMES     600            /* not the original's: the title stays up longer */
+#define LIST_HOLD        (15 * 60)      /* not the original's: a score list turned to stays this long */
+#define LIST_STEP        0.34f          /* lists a lane's worth of spinner turns: about three lanes a list */
 #define DEMO_FRAMES      1500           /* nor this: its demo plays until its lives are gone */
 #define INITIALS_TIMEOUT (30 * 60)
 #define NOTICE_FRAMES    150
@@ -110,7 +112,9 @@ enum { BRIGHT_WEB, BRIGHT_STARS, BRIGHT_ENEMIES, BRIGHT_EFFECTS, BRIGHT_CLAW, BR
 typedef char bright_count_is_the_service_menus[BRIGHT_COUNT == SERVICE_BRIGHTS ? 1 : -1];
 
 /* The original's game types: its 'selected'. */
-enum { MODE_TRADITIONAL, MODE_PLUS, MODE_2000, MODE_COUNT };
+/* Not the original's: Beastly Mode is a game type of its own here, Tempest
+ * 2000 with 'beastly' set, with its own start levels and its own table. */
+enum { MODE_TRADITIONAL, MODE_PLUS, MODE_2000, MODE_BEASTLY, MODE_COUNT };
 
 enum {
     K_NONE,
@@ -259,7 +263,7 @@ static struct {
     int   attract_sound;                /* game.ini: sound while nobody plays */
     int   free_play;                    /* game.ini: no coin needed */
     int   unlocked_level;               /* game.ini: start levels offered from the first day */
-    int   beastly_ini;                  /* game.ini: the way into Beastly Mode is shown to everybody */
+    int   beastly_ini;                  /* game.ini: Beastly Mode is offered as a game type */
     /* game.ini: which control does what, by advmame.rc names */
     char  btn_fire[SERVICE_CONTROLS_LENGTH], btn_zap[SERVICE_CONTROLS_LENGTH], btn_jump[SERVICE_CONTROLS_LENGTH],
           btn_left[SERVICE_CONTROLS_LENGTH], btn_right[SERVICE_CONTROLS_LENGTH];
@@ -276,8 +280,11 @@ static struct {
 
     /* the cabinet */
     vp_credits credits;
-    vp_score   table[VP_HISCORE_MAX];
-    int        table_count, rank;
+    vp_score   table[MODE_COUNT][VP_HISCORE_MAX];      /* each game type's own */
+    int        table_count[MODE_COUNT], rank, rank_mode;   /* `rank` is in rank_mode's table */
+    int        show_rank;               /* attract mode opens on that table once */
+    int        score_list;              /* the list attract mode shows: an index into score_pages */
+    int        list_frames;             /* how long it stays: ATTRACT_PAGE, or LIST_HOLD once turned */
     char       initials[4];
     int        initial_pos, initial_letter;
 
@@ -1324,7 +1331,7 @@ static void end_game(void);
 /* suprise / bonnk: 2,000 points, or once in a while the way out of the level. */
 static void surprise(void)
 {
-    if (rannum() <= 8) {                /* douttah */
+    if (!G.start_bonus && rannum() <= 8) {      /* suprise: not while the start bonus is pending; douttah */
         say("outta here!");
         doscore(13);
         excellent();
@@ -1457,6 +1464,9 @@ static void run_objects(void)
             continue;
         }
         G.zapped_now = 0;
+        /* r_obj: the furthest enemy is taken before it runs, so a tanker
+         * that opens still holds the level for this frame. */
+        if (o->enemy && ZI(o->z) > furthest) furthest = ZI(o->z);
         switch (o->kind) {
         case K_POWERUP:  run_powerup(o);  break;
         case K_MIRROR:   run_mirror(o);   break;
@@ -1482,7 +1492,6 @@ static void run_objects(void)
         case K_SPLAT:    run_effect(o, SPLAT_FRAMES);  break;
         default: break;
         }
-        if (o->kind && o->enemy && ZI(o->z) > furthest) furthest = ZI(o->z);
     }
 
     /* r_end: every enemy launched and none left below the rim: fly off. */
@@ -2376,14 +2385,119 @@ static void draw_message(void)
 /* --- the cabinet: attract, coin, game type, start level ---------------------------- */
 
 /* o1s1..o1s3 */
-static const char *const mode_names[MODE_COUNT] = {"TRADITIONAL", "TEMPEST PLUS", "TEMPEST 2000"};
+static const char *const mode_names[MODE_COUNT] = {"TRADITIONAL", "TEMPEST PLUS", "TEMPEST 2000", "TEMPEST 2000 BEASTLY"};
 static const char letters[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ .";
+
+/* The game types offered: Beastly Mode only when game.ini says so. */
+static int mode_count(void) { return G.beastly_ini ? MODE_COUNT : MODE_BEASTLY; }
+
+/* Not the original's (the cartridge has one table): every game type has its
+ * own. Tempest 2000's is the SDK's (save/highscores.txt, which the cabinet's
+ * menu shows); the others are files of the same format next to it: best
+ * first, a name and a score a line. */
+static const char *const score_files[MODE_COUNT] = {
+    "highscores_traditional.txt", "highscores_plus.txt", NULL, "highscores_beastly.txt"
+};
+
+static const char *score_path(int mode, char *buf, size_t size)
+{
+    snprintf(buf, size, "%s/%s", vp_save_dir(), score_files[mode]);
+    return buf;
+}
+
+static int scores_load(int mode, vp_score out[VP_HISCORE_MAX])
+{
+    char path[1024], name[16];
+    int n = 0, score;
+    FILE *f;
+
+    if (mode == MODE_2000) return vp_hiscore_load(out);
+    f = fopen(score_path(mode, path, sizeof path), "r");
+    if (!f) return 0;
+    while (n < VP_HISCORE_MAX && fscanf(f, "%15s %d", name, &score) == 2) {
+        if (score <= 0) continue;
+        snprintf(out[n].name, sizeof out[n].name, "%.3s", name);
+        out[n].score = score;
+        n++;
+    }
+    fclose(f);
+    return n;
+}
+
+static int scores_rank(int mode, int score)
+{
+    vp_score t[VP_HISCORE_MAX];
+    int n, i;
+
+    if (mode == MODE_2000) return vp_hiscore_rank(score);
+    if (score <= 0) return -1;
+    n = scores_load(mode, t);
+    for (i = 0; i < n; i++) if (score > t[i].score) return i;
+    return n < VP_HISCORE_MAX ? n : -1;
+}
+
+/* As vp_hiscore_insert: a new file, renamed over the old one. */
+static void scores_insert(int mode, const char *name, int score)
+{
+    vp_score t[VP_HISCORE_MAX];
+    char path[1024], temp[1040];
+    int n, at, i;
+    FILE *f;
+
+    if (mode == MODE_2000) { vp_hiscore_insert(name, score); return; }
+    n = scores_load(mode, t);
+    at = scores_rank(mode, score);
+    if (at < 0) return;
+    if (n == VP_HISCORE_MAX) n--;
+    memmove(&t[at + 1], &t[at], (size_t)(n - at) * sizeof t[0]);
+    for (i = 0; i < 3 && name[i]; i++) {
+        char c = name[i];
+        t[at].name[i] = (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' ? c : '.';
+    }
+    t[at].name[i] = 0;
+    if (!i) strcpy(t[at].name, "---");
+    t[at].score = score;
+    n++;
+    score_path(mode, path, sizeof path);
+    snprintf(temp, sizeof temp, "%s.new", path);
+    f = fopen(temp, "w");
+    if (!f) return;
+    for (i = 0; i < n; i++) fprintf(f, "%s %d\n", t[i].name, t[i].score);
+    fflush(f);
+    if (fclose(f) == 0) {
+        remove(path);
+        rename(temp, path);
+    }
+}
+
+static void load_tables(void)
+{
+    int i;
+    for (i = 0; i < MODE_COUNT; i++) G.table_count[i] = scores_load(i, G.table[i]);
+}
+
+/* Attract mode's page 1 shows one game type's table, the next one each
+ * time round; the spinner turns through them. Beastly only when offered. */
+static const int score_pages[MODE_COUNT] = { MODE_2000, MODE_BEASTLY, MODE_PLUS, MODE_TRADITIONAL };
+#define SCORES_PAGE  1
+#define CREDITS_PAGE 2
+
+static int next_list(int list, int dir)
+{
+    int i;
+    for (i = 0; i < MODE_COUNT; i++) {
+        list = ((list + dir) % MODE_COUNT + MODE_COUNT) % MODE_COUNT;
+        if (score_pages[list] < mode_count()) break;
+    }
+    return list;
+}
 
 static void set_mode(int mode)
 {
     G.mode = mode;
-    G.t2k = mode == MODE_2000;
+    G.t2k = mode == MODE_2000 || mode == MODE_BEASTLY;
     G.solids = mode != MODE_TRADITIONAL;
+    G.beastly = mode == MODE_BEASTLY;
 }
 
 static void enter(int state)
@@ -2399,7 +2513,14 @@ static void enter_attract(void)
     G.demo = 0;
     G.attract_page = 0;
     set_mode(MODE_2000);
-    G.table_count = vp_hiscore_load(G.table);
+    load_tables();
+    if (G.show_rank) {                  /* a new entry: its table first */
+        int i;
+        G.show_rank = 0;
+        for (i = 0; i < MODE_COUNT; i++) if (score_pages[i] == G.rank_mode) G.score_list = i;
+        G.attract_page = SCORES_PAGE;
+        G.list_frames = ATTRACT_PAGE;
+    }
     sound_loop_stop();
     sound_tune(TUNE_THEME);
     enter(ATTRACT);
@@ -2512,9 +2633,25 @@ static void update_attract(vp_input *in)
 {
     vp_credits_blink(&G.credits, (double)G.frames / 60.0);
     if (coin_start(in)) return;
-    if (G.state_time < (G.attract_page == 0 ? TITLE_FRAMES : ATTRACT_PAGE)) return;
+    if (G.attract_page == SCORES_PAGE) {        /* the spinner turns through the lists */
+        int step = menu_step(in, LIST_STEP);
+        if (step) {
+            G.score_list = next_list(G.score_list, step > 0 ? 1 : -1);
+            G.state_time = 0;
+            G.list_frames = LIST_HOLD;
+            sound_fx(FX_TINK, 0);
+        }
+    }
+    if (G.state_time < (G.attract_page == 0 ? TITLE_FRAMES
+                        : G.attract_page == SCORES_PAGE ? G.list_frames : ATTRACT_PAGE)) return;
     G.state_time = 0;
-    if (++G.attract_page >= 3) start_demo();
+    ++G.attract_page;
+    if (G.attract_page == SCORES_PAGE) {       /* the next game type's table */
+        G.score_list = next_list(G.score_list, 1);
+        G.list_frames = ATTRACT_PAGE;
+        G.menu_spin = 0;
+    }
+    if (G.attract_page > CREDITS_PAGE) start_demo();
 }
 
 static void update_mode_select(vp_input *in)
@@ -2523,7 +2660,7 @@ static void update_mode_select(vp_input *in)
     int mode = G.mode - menu_step(in, 1.0f);
 
     if (mode < 0) mode = 0;
-    if (mode >= MODE_COUNT) mode = MODE_COUNT - 1;
+    if (mode >= mode_count()) mode = mode_count() - 1;
     if (mode != G.mode) { set_mode(mode); set_level(0); sound_fx(FX_TINK, 0); G.state_time = 0; }
     if (!menu_chosen(in)) return;
     sound_fx(FX_SEXY_YES, 0);
@@ -2557,12 +2694,8 @@ static void update_level_select(vp_input *in)
     if (level > G.best_level[G.mode]) level = G.best_level[G.mode];
     if (level != G.level) { set_level(level); sound_fx(FX_TINK, 0); G.state_time = 0; }
     /* waitfor: the original's Option button starts Beastly Mode, once the
-     * game has been beaten and the cartridge remembers it. A cabinet does
-     * not know who is playing: here the Superzapper button held while the
-     * level is taken starts it, for whoever knows. The page for beating the
-     * game tells. */
+     * game has been beaten. Here it is a game type of its own (set_mode). */
     if (!menu_chosen(in)) return;
-    G.beastly = G.state_time < MENU_TIMEOUT && control_held(in, G.btn_zap);
     start_game();
 }
 
@@ -2581,7 +2714,8 @@ static void update_initials(vp_input *in)
     }
     if (G.initial_pos < 3 && G.state_time < INITIALS_TIMEOUT) return;
     G.initials[3] = 0;
-    vp_hiscore_insert(G.initials, G.score);
+    scores_insert(G.rank_mode, G.initials, G.score);
+    G.show_rank = 1;
     G.over_player++;
     end_game();                         /* the other player's turn, or back to the title */
 }
@@ -2738,23 +2872,27 @@ static void save_progress(void)
     char path[1024];
     FILE *f = fopen(progress_path(path, sizeof path), "w");
     if (!f) return;
-    fprintf(f, "%d %d %d\n", G.best_level[0], G.best_level[1], G.best_level[2]);
+    fprintf(f, "%d %d %d %d\n", G.best_level[0], G.best_level[1], G.best_level[2], G.best_level[3]);
     fclose(f);
 }
 
-/* A machine nobody has played yet shows a table to beat. The cartridge's
- * own is empty; these names and scores are made up. */
+/* A machine nobody has played yet shows a table to beat, for every game
+ * type. The cartridge's own is empty; these names and scores are made up
+ * (Beastly's doubled, as its points are). */
 static void default_scores(void)
 {
     static const struct { const char *name; int score; } made_up[10] = {
-        {"YAK", 20000}, {"JEF", 18000}, {"LLA", 16000}, {"MAX", 14000}, {"T2K", 12000},
-        {"ZAP", 10000}, {"WEB", 8000}, {"CLW", 6000}, {"PUP", 4000}, {"FLP", 2000}
+        {"YAK", 20000}, {"END", 18000}, {"JEF", 16000}, {"MIO", 14000}, {"LLA", 12000},
+        {"DRP", 10000}, {"MAX", 8000}, {"NMA", 6000}, {"T2K", 4000}, {"INU", 2000}
     };
     vp_score table[VP_HISCORE_MAX];
-    int i;
+    int mode, i;
 
-    if (vp_hiscore_load(table) > 0) return;
-    for (i = 0; i < 10; i++) vp_hiscore_insert(made_up[i].name, made_up[i].score);
+    for (mode = 0; mode < MODE_COUNT; mode++) {
+        if (scores_load(mode, table) > 0) continue;
+        for (i = 0; i < 10; i++)
+            scores_insert(mode, made_up[i].name, made_up[i].score * (mode == MODE_BEASTLY ? 2 : 1));
+    }
 }
 
 /* loiter / xquick: a life gone. The level starts again. */
@@ -2799,7 +2937,8 @@ static void end_game(void)
 {
     for (; G.over_player < G.players; G.over_player++) {
         G.score = G.pl[G.over_player].score;
-        G.rank = vp_hiscore_rank(G.score);
+        G.rank_mode = G.mode;
+        G.rank = scores_rank(G.mode, G.score);
         if (G.rank < 0) continue;
         memcpy(G.initials, "A  ", 4);
         G.initial_pos = G.initial_letter = 0;
@@ -3028,8 +3167,9 @@ void game_init(int vertical)
     init_stars();
     set_mode(MODE_2000);
     set_level(0);
-    G.table_count = vp_hiscore_load(G.table);
+    load_tables();
     G.rank = -1;
+    G.score_list = MODE_COUNT - 1;      /* so that the first round shows Tempest 2000's */
     G.state = ATTRACT;
 }
 
@@ -3259,7 +3399,8 @@ void game_selftest(int speed, int mode, int beastly, int level)
 {
     G.selftest = speed > 0 ? speed : 1;
     set_mode(mode >= 0 && mode < MODE_COUNT ? mode : MODE_2000);
-    G.beastly = beastly;
+    if (beastly && G.mode == MODE_2000) set_mode(MODE_BEASTLY);
+    G.beastly = beastly || G.mode == MODE_BEASTLY;
     ST.level = level > 0 ? level - 1 : 0;
 }
 
@@ -3325,13 +3466,15 @@ static void draw_title(vp_dvg *d)
  * this one goes with the title: the stars streaming past, the heading as
  * solid letters swinging in space, and the table coloured from the best
  * down, each row swaying a little after the one above. */
-static void draw_scores(vp_dvg *d)
+static void draw_scores(vp_dvg *d, int mode)
 {
     /* From yellow at the top through orange, red and violet to blue. */
     static const unsigned char rank_rgb[9][3] = {
         {255, 255, 0}, {255, 190, 0}, {255, 120, 0}, {255, 60, 30}, {255, 40, 120},
         {220, 40, 220}, {140, 70, 255}, {70, 110, 255}, {0, 170, 255}
     };
+    const vp_score *table = G.table[mode];
+    int count = G.table_count[mode];
     float fly = (float)G.frames * 1.5f;
     char text[48];
     int i;
@@ -3341,19 +3484,21 @@ static void draw_scores(vp_dvg *d)
     view_begin(d, 0, 0, 0);
     view_level(G.bright[BRIGHT_TITLE]);
     logo_topguns(G.frames);
-    for (i = 0; i < G.table_count && i < 9; i++) {
+    plain(d, mode_names[mode], 192.0f, 58.0f, 7.0f, VP_TEXT_CENTER, 0, 255, 0);    /* whose table */
+    plain(d, "TURN SPINNER FOR NEXT LIST", 192.0f, 200.0f, 5.5f, VP_TEXT_CENTER, 60, 100, 255);
+    for (i = 0; i < count && i < 9; i++) {
         const unsigned char *c = rank_rgb[i];
         float sway = 5.0f * sinf((float)G.frames * 0.035f - (float)i * 0.45f);
         float size = i == 0 ? 11.0f : 8.5f;
         float y = (i == 0 ? 74.0f : 78.0f) + 14.0f * (float)i;
         int   glow = i == 0 ? 2 : 1;
 
-        if (i == G.rank && ((G.frames / 15) & 1)) continue;
+        if (i == G.rank && mode == G.rank_mode && ((G.frames / 15) & 1)) continue;
         while (glow--) {                /* the best one twice over, as the title's near faces */
             snprintf(text, sizeof text, "%d", i + 1);
             plain(d, text, 100.0f + sway, y, size, VP_TEXT_RIGHT, c[0], c[1], c[2]);
-            plain(d, G.table[i].name, 116.0f + sway, y, size, VP_TEXT_LEFT, c[0], c[1], c[2]);
-            snprintf(text, sizeof text, "%d", G.table[i].score);
+            plain(d, table[i].name, 116.0f + sway, y, size, VP_TEXT_LEFT, c[0], c[1], c[2]);
+            snprintf(text, sizeof text, "%d", table[i].score);
             plain(d, text, 310.0f + sway, y, size, VP_TEXT_RIGHT, c[0], c[1], c[2]);
         }
     }
@@ -3397,7 +3542,7 @@ static void draw_victory(vp_dvg *d)
     static const char *const won[] = {
         "YOU BEAT THE GAME!", "",
         "NOW TRY TO BEAT TEMPEST -", "THE BEASTLY MODE!", "",
-        "HOLD SUPERZAPPER WHILE YOU TAKE", "THE START LEVEL TO BEGIN THIS", "HARDER VERSION OF THE GAME.", "",
+        "CHOOSE TEMPEST 2000 BEASTLY AS", "THE GAME TO BEGIN THIS", "HARDER VERSION OF THE GAME.", "",
         "ALL POINTS SCORED IN", "BEASTLY MODE ARE DOUBLED!", "",
         "NOW GO AND HAVE A NICE CUP OF TEA", "TO CALM DOWN!", NULL
     };
@@ -3463,16 +3608,20 @@ static void draw_menus(vp_dvg *d)
     switch (G.state) {
     case ATTRACT:
         if (G.attract_page == 0) draw_title(d);
-        else if (G.attract_page == 1) draw_scores(d);
+        else if (G.attract_page == SCORES_PAGE) draw_scores(d, score_pages[G.score_list]);
         else draw_credits(d);
         draw_coin_line(d);
         break;
     case MODE_SELECT:
         draw_backdrop(d, 220.0f);
         plain(d, "SELECT GAME", 192.0f, 24.0f, 14.0f, VP_TEXT_CENTER, 255, 255, 0);
-        for (i = 0; i < MODE_COUNT; i++) {
-            float y = 34.0f * (float)(MODE_COUNT - 1 - i);
-            if (i == G.mode) plain(d, mode_names[i], 192.0f, 84.0f + y, 18.0f, VP_TEXT_CENTER, 255, 255, 255);
+        for (i = 0; i < mode_count(); i++) {
+            float y = (mode_count() > 3 ? 30.0f : 34.0f) * (float)(mode_count() - 1 - i);
+            if (i == G.mode && i == MODE_BEASTLY) {     /* too wide for one row at this size: two, the first above */
+                plain(d, "TEMPEST 2000", 192.0f, 62.0f + y, 18.0f, VP_TEXT_CENTER, 255, 255, 255);
+                plain(d, "BEASTLY", 192.0f, 84.0f + y, 18.0f, VP_TEXT_CENTER, 255, 0, 0);
+            }
+            else if (i == G.mode) plain(d, mode_names[i], 192.0f, 84.0f + y, 18.0f, VP_TEXT_CENTER, 255, 255, 255);
             else plain(d, mode_names[i], 192.0f, 88.0f + y, 11.0f, VP_TEXT_CENTER, 60, 100, 255);
         }
         plain(d, "SPIN TO CHOOSE - START TO PLAY", 192.0f, 222.0f, 7.0f, VP_TEXT_CENTER, 0, 255, 0);
@@ -3494,8 +3643,6 @@ static void draw_menus(vp_dvg *d)
         plain(d, text, 192.0f, 52.0f, 26.0f, VP_TEXT_CENTER, 255, 255, 255);
         snprintf(text, sizeof text, "%d BONUS", level_bonus(G.level));     /* setcsmsg */
         plain(d, text, 192.0f, 190.0f, 10.0f, VP_TEXT_CENTER, 255, 255, 0);
-        if (G.beastly_ini && ((G.frames / 30) & 1))                         /* bstymsg */
-            plain(d, "HOLD SUPERZAPPER FOR BEASTLY MODE!", 192.0f, 206.0f, 7.0f, VP_TEXT_CENTER, 255, 60, 60);
         plain(d, "SPIN TO CHOOSE - START TO PLAY", 192.0f, 222.0f, 7.0f, VP_TEXT_CENTER, 0, 255, 0);
         break;
     case VICTORY:

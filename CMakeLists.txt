@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(tempest2000 VERSION 0.2.4 LANGUAGES C CXX)
+project(tempest2000 VERSION 0.3.0 LANGUAGES C CXX)
 
 # Tempest 2000 for VectorPie. Built like the SDK's own programs:
 #   PC, natively (MSYS2 MinGW-w64 with SDL2):  see BUILD.md

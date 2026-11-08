@@ -31,9 +31,15 @@ cp -r "$R/usr/lib/aarch64-linux-gnu" "$R/lib/"; cp "$R/usr/lib/aarch64-linux-gnu
 Bauen (clang aus `C:/Users/ocare/.local/share/retcomm/toolchains/cmake-clang-v1/latest/bin` im PATH):
 
 ```bash
-cmake -S . -B build/pi -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-pi-clang.cmake -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B build/pi -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-pi-clang.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_HAVE_LIBC_PTHREAD=1
 cmake --build build/pi
 ```
+
+In Git Bash vorher `export PATH=/c/msys64/mingw64/bin:$PATH`, sonst bricht gcc ohne Meldung ab ("FAILED" ohne Fehlertext) und der Selbsttest läuft unbemerkt mit dem alten Programm.
+
+`-DCMAKE_HAVE_LIBC_PTHREAD=1`: die SDK braucht Threads (`find_package(Threads)`), und beim Querbauen erkennt CMake sonst `-lpthreads`, das es nicht gibt (glibc hat pthread selbst). In einem Worktree zusätzlich `"-DT2K_PI_SYSROOT=F:/Tempest 2000 Port/build/pi-sysroot"`.
+
+Ohne Bild auf dem Automaten testen (das Menü läuft weiter): Programm, `game.ini` und `assets` in einen Ordner unter `/tmp` kopieren, dort `T2K_SELFTEST=400,2,0,1 SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy ./tempest2000 --windowed`.
 
 Auf den Automaten kopieren (der Ordner ist über P: beschreibbar):
 
@@ -56,12 +62,12 @@ Der Weg des SDK über WSL2 mit Debian 13 (`vendor/VectorPie/sdk/tools/setup-wsl.
 `package/game.ini` wird neben die ausführbare Datei kopiert und beim Start gelesen.
 
 - `sensitivity`: Spinner und Maus. 1.0 heißt 1200 Zählschritte für 5 Bahnen, 2.0 doppelt so weit, negativ kehrt die Richtung um.
-- `volume`, `music_volume`, `effects_volume`, `voice_volume`: je 0 bis 100.
+- `volume`, `music_volume`, `effects_volume`, `voice_volume`: je 0 bis 100. Am Automaten kommen MUSIC VOLUME und SOUND VOLUME aus dem Menü dazu (die SDK liest sie aus `/usr/local/share/advance/vector_pie_menu.cfg`): die Musik folgt MUSIC VOLUME, Effekte und Stimmen SOUND VOLUME.
 - `attract_sound`: `yes` oder `no`, Ton solange niemand spielt.
 - `voice_pitch`: wie viel schneller als aufgenommen die Stimmen laufen.
 - `free_play`: `yes` heißt Start ohne Münze.
 - `unlocked_level`: bis zu welchem Level der Start von Anfang an wählbar ist (ab Werk 15).
-- `beastly_mode`: `yes` schaltet den Beastly Mode frei.
+- `beastly_mode`: `yes` bietet "TEMPEST 2000 BEASTLY" als eigene Spielart an (eigene Startlevel, eigene Bestenliste `save/highscores_beastly.txt`).
 - `checkpoints`: `yes` lässt nach einem verlorenen Leben nur die übrigen Gegner wiederkommen, `no` beginnt die Welle neu.
 - Eigene Musik: `music/tune1.wav` bis `tune7.wav` neben `game.ini`, siehe die Erklärung in der Datei.
 - `jump_button`: ein zweiter Eingang für den Sprung, mit seinem advmame.rc-Namen.

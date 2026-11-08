@@ -14,12 +14,18 @@
 #define FX_VOLUME    0.8f
 #define MUSIC_VOLUME 1.0f
 #define MUSIC_RATE   32000
+/* A tune made from its module plays as the game's own stream (vp_stream_play),
+ * so that the cabinet's MUSIC VOLUME is its volume, not SOUND VOLUME: the
+ * SDK counts every vp_sound_play as an effect. Kept this far ahead, in
+ * frames; the SDK holds about a second. */
+#define MUSIC_AHEAD  (MUSIC_RATE * 3 / 10)
 
 static vp_audio *s_audio;
 static vp_sound *s_fx[FX_COUNT];
 static vp_voice  s_music, s_loop, s_loop2;
 static int       s_tune;
-static vp_sound *s_tune_sound;          /* the tune playing, when the game made it from its module */
+static float    *s_tune_samples;        /* the tune playing, when the game made it from its module: */
+static long      s_tune_frames, s_tune_pos;     /* stereo frames, and how far it has been written */
 
 /* A tune being made from its module, off the game's thread: one at a time. */
 static struct {
@@ -193,6 +199,25 @@ static int render_tune(void *unused)
     return 0;
 }
 
+/* The tune made from its module, written on into its stream, round and
+ * round, until MUSIC_AHEAD waits. */
+static void feed_tune(void)
+{
+    int queued, fit;
+
+    if (!s_music || !s_tune_samples || s_tune_frames <= 0) return;
+    queued = vp_stream_queued(s_audio, s_music);
+    while (queued < MUSIC_AHEAD) {
+        long left = s_tune_frames - s_tune_pos;
+        int want = (int)(left < MUSIC_AHEAD - queued ? left : MUSIC_AHEAD - queued);
+        fit = vp_stream_write(s_audio, s_music, s_tune_samples + 2 * s_tune_pos, want);
+        if (fit <= 0) return;
+        queued += fit;
+        s_tune_pos += fit;
+        if (s_tune_pos >= s_tune_frames) s_tune_pos = 0;
+    }
+}
+
 void sound_tune(int tune)
 {
     char path[1024];
@@ -201,6 +226,8 @@ void sound_tune(int tune)
     if (!s_audio || tune == s_tune) return;
     if (s_music) vp_voice_stop(s_audio, s_music, 0.5f);
     s_music = 0;
+    free(s_tune_samples);               /* the stream has its own copy of what was written */
+    s_tune_samples = NULL;
     s_tune = tune;
     if (tune > 0 && own_tune(tune, path, sizeof path))
         s_music = vp_music_play(s_audio, path, MUSIC_VOLUME * s_music_level, 1, 0.5f);
@@ -217,18 +244,19 @@ void sound_update(void)
     if (s_job.thread && SDL_AtomicGet(&s_job.done)) {
         SDL_WaitThread(s_job.thread, NULL);
         s_job.thread = NULL;
-        if (s_job.samples && s_job.tune == s_tune && !s_music) {
-            vp_sound *made = NULL;
-            if (s_tune_sound) vp_sound_free(s_audio, s_tune_sound);
-            s_tune_sound = NULL;
-            if (vp_sound_from_samples(s_audio, s_job.samples, (int)s_job.frames, 2, MUSIC_RATE, &made) == VP_OK) {
-                s_tune_sound = made;
-                s_music = vp_sound_play(s_audio, made, MUSIC_VOLUME * s_music_level, 1.0f, 1);
+        if (s_job.samples && s_job.tune == s_tune && !s_music && s_job.frames > 0) {
+            s_music = vp_stream_play(s_audio, MUSIC_RATE, MUSIC_VOLUME * s_music_level);
+            if (s_music) {
+                s_tune_samples = s_job.samples;     /* the stream's, from now on */
+                s_tune_frames = s_job.frames;
+                s_tune_pos = 0;
+                s_job.samples = NULL;
             }
         }
         free(s_job.samples);
         s_job.samples = NULL;
     }
+    feed_tune();
     if (s_job.thread || s_tune <= 0 || s_music || own_tune(s_tune, path, sizeof path)) return;
     snprintf(name, sizeof name, "assets/music/tune%d.mod", s_tune);
     vp_asset_path(name, s_job.path, sizeof s_job.path);

@@ -7,6 +7,7 @@
 - `tools/extract_data.py`: erzeugt `src/gen/t2k_data.c` aus `yak.s`.
 - `src/view.c`: Perspektive, Linienausgabe, Objekte (`view_solid` für Tempest-2000-Formen mit Flächenfarben, `view_vobj` für Classic-Formen), CRY-Farben. Raum wie im Original: x rechts, y nach unten, z in die Tiefe. Netzrand bei z=30, Netzende bei z=190 (`webz` ± 80). Der Betrachter steht bei z=0, Projektion 128 * x / z wie `polyo2d` in `gpu/horse.gas`.
 - `src/game.c`: Zustand, 60-Hz-Schritt, Zeichnen.
+- SDK: `vendor/VectorPie` steht auf `065d93a` (Menü-Lautstärken des Automaten). Die Musik aus den Modulen läuft als Stream (`feed_tune` in `src/sound.c`), nicht als `vp_sound_play`, sonst gälte für sie SOUND VOLUME statt MUSIC VOLUME.
 - `src/sound.c`: Effekte (`sound_fx` entspricht `fox`, Tonhöhe als Periode wie `sfx_pitch`) und Musik (`sound_tune` entspricht `modnum`).
 - `tools/extract_audio.py`: erzeugt `assets/sounds/fxNN.wav` (Raten nach dem Treiber) und kopiert die Module nach `assets/music/tuneN.mod`. CMake kopiert `assets` neben das Programm. `src/mod.c` spielt die Module im Spiel, `tools/make_vpk.sh` baut das Paket.
 - Bauen und Testen: siehe `BUILD.md`.
@@ -54,7 +55,9 @@
 
 ## Nächste Schritte
 
-1. Rückmeldung des Nutzers vom Automaten einarbeiten (er testet laufend). Offen vor allem: Klang und Tempo des neuen Level-Endes (`update_zoom`, `update_warpin`, `sound_zoom_up`; Stellschrauben `WARPIN_SPEED` und der Tonhöhenschritt in `sound_zoom_up`), und ob die Anzeige "ZAP" bleiben soll.
+1. Die Fassung ohne Arcade läuft seit 2026-11-08 auf dem Automaten (`/persistent/games/tempest2000/`). Die vorigen Fassungen liegen dort als `*.before-beastly` (mit Arcade), `*.before-levelend`, `*.before-fuse`, `*.before-sdk`, `*.before-arcade`. Zum Tauschen bei laufendem Spiel: nach `/tmp` kopieren, `install` nach `.tmp`, dann `mv`. In `save/settings.ini` stehen noch `difficulty`, `arcade_*`; das Spiel übergeht sie, und beim nächsten Speichern im Service-Menü fallen sie weg.
+   Dann Rückmeldung einarbeiten: Beastly als Spielart, Bestenliste je Spielart mit Blättern per Spinner und Standard-Einträgen (Attract-Seiten nicht angesehen; prüfen, ob "TURN SPINNER FOR NEXT LIST" auf y 200 frei steht und ob `LIST_STEP` passt), Musik als SDK-Stream (folgt MUSIC VOLUME), Level-Ende. Offen außerdem: Klang und Tempo des neuen Level-Endes (`update_zoom`, `update_warpin`, `sound_zoom_up`; Stellschrauben `WARPIN_SPEED` und der Tonhöhenschritt in `sound_zoom_up`), und ob die Anzeige "ZAP" bleiben soll.
+   Schwierigkeit in Tempest 2000 (falls sie wieder Thema wird): allein über Tabellen je Level (`rsetw` in `yak.s` ab 8670): eigene Welle je Level (`waves`, `_nwXX`), Tempo je 2 Level (`sz_stuff`, `fz_stuff`, `tz_stuff`, `fuz_stuff`; Flipper von $a000 bis $de00, +40 % über 100 Level), je 4 Level Pulsar-Takt (`pudels`) und Powerup-Abstand (`pup_stuff`), Super-Flipper nach Level (`sflip_prob*`).
 2. Nach jeder Änderung an der Spiellogik den Selbsttest laufen lassen (`BUILD.md`, Abschnitt Selbsttest).
 3. Musik-Lücke klären: nachfragen, in welchem Level sie auftritt.
 
