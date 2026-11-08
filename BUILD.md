@@ -1,5 +1,12 @@
 # Bauen
 
+## Woher die Daten kommen
+
+Im Repository liegen keine Daten von Atari (seit 2026-11-08, auch nicht in der Geschichte). Zwei Wege:
+
+- Release-Ausgabe (`-DT2K_ROM_DATA=ON`, Abschnitt unten): baut direkt aus dem Repository; das Spiel nimmt die Daten beim Start aus dem Jaguar-ROM des Spielers.
+- Volle Ausgabe (alle anderen Abschnitte): erst den veröffentlichten Quelltext des Originals nach `reference/tempest2k` holen (`git clone https://github.com/mwenge/tempest2k reference/tempest2k`), dann `tools/extract_data.py` und `tools/extract_audio.py` laufen lassen (Abschnitte "Spieldaten neu erzeugen" und "Ton neu erzeugen"). Das erzeugt `src/gen/t2k_data.c`, `assets/sounds` und `assets/music`; `.gitignore` hält sie aus Git heraus.
+
 ## PC (Windows, nativ)
 
 Voraussetzung: MSYS2 mit MinGW-w64-GCC und SDL2 unter `C:\msys64\mingw64`, dazu CMake und Ninja.
