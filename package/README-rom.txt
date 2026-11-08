@@ -54,7 +54,7 @@ CONTROLS
   Superzapper                 superzapper
   Jump                        jump (once the jump powerup is collected)
   Coin, Start 1 / Start 2     credits, one or two players (taking turns)
-  Hold Superzapper while taking the start level: Beastly Mode
+  Game select: Tempest 2000 Beastly is a game type of its own
 
 F2 on a keyboard opens the service menu: volumes, free play, checkpoints,
 spinner calibration (one full turn should move the claw 5 lanes), button
