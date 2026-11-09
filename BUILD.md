@@ -159,7 +159,7 @@ Das schreibt `build/tempest2000-<version>.vpk`: Pi-Programm, `game.ini`, `assets
 
 ## Release-Ausgabe (braucht das Jaguar-ROM)
 
-Neben der vollen Ausgabe gibt es eine Ausgabe ohne Daten von Atari. Sie holt sich Tabellen, Soundeffekte und Musik beim Start aus dem Tempest-2000-ROM des Spielers (2 MB, `.j64` `.jag` `.rom` `.bin`, mit oder ohne 8-KB-Kopfteil, geprüft per CRC32 `6b2b95ad`). Das ROM liegt im Ordner `save` des Spiels oder neben dem Programm; fehlt es, zeigt das Spiel, was fehlt und wohin es gehört.
+Neben der vollen Ausgabe gibt es eine Ausgabe ohne Daten von Atari. Sie holt sich Tabellen, Soundeffekte und Musik beim Start aus dem Tempest-2000-ROM des Spielers (2 MB, `.j64` `.jag` `.rom` `.bin`, mit oder ohne 8-KB-Kopfteil, geprüft per CRC32 `6b2b95ad`). Das Spiel sucht das ROM zuerst in `/persistent/games/rom` (Sammelordner des Automaten), dann im Ordner `save` des Spiels, dann neben dem Programm; fehlt es, zeigt das Spiel, was fehlt und wohin es gehört.
 
 Die Datendatei dazu nach jeder Änderung an `tools/extract_data.py` neu erzeugen (liest `src/gen/t2k_data.c` und das ROM aus `reference/tempest2k/orig/t2k.jag`):
 

@@ -36,12 +36,13 @@ INSTALLING
    called games) and install it from the VectorPie menu:
    Settings -> GAMES -> INSTALL FROM USB.
 
-2. Put the ROM into the game's save folder:
+2. Put the ROM into the cabinet's ROM folder:
 
-     /persistent/games/tempest2000/save/
+     /persistent/games/rom/
 
-   (Next to the program, in /persistent/games/tempest2000/, works as well,
-   but save/ is kept when the game is updated.)
+   The game looks there first. The game's save folder,
+   /persistent/games/tempest2000/save/, and the folder next to the program
+   work as well.
 
 3. Start Tempest 2000 from the menu (Atari).
 
@@ -86,7 +87,7 @@ DEUTSCH, KURZ
 Diese Ausgabe enthaelt keine Daten von Atari und braucht das Tempest-2000-ROM
 des Jaguar (Hashes oben). Das ROM als .j64, .jag, .rom oder .bin in den Ordner
 
-  /persistent/games/tempest2000/save/
+  /persistent/games/rom/
 
 legen und das Spiel aus dem VectorPie-Menue starten. Ein falsches oder
 beschaedigtes ROM wird abgelehnt; das Spiel zeigt dann, was fehlt. F2 oeffnet

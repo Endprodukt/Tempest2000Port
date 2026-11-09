@@ -31,8 +31,9 @@ else
 
 ; This edition holds none of Atari's data: it needs the Tempest 2000 Jaguar
 ; ROM (2 MB, .j64 .jag .rom or .bin, with or without the 8 KB header). Put it
-; into the folder save next to this file (or next to this file) and start the
-; game; without it the game says what is missing.
+; into /persistent/games/rom (looked at first), the folder save next to this
+; file, or next to this file, and start the game; without it the game says
+; what is missing.
 INI
 fi
 version=$(sed -n 's/^version[[:space:]]*=[[:space:]]*\([0-9.]*\).*/\1/p' "$stage/game.ini" | head -n 1)

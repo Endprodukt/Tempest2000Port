@@ -2,8 +2,8 @@
  *
  * Built with T2K_ROM_DATA, the program holds none of Atari's data. At the
  * start it looks for the Tempest 2000 Jaguar ROM (a 2 MB .j64, .jag, .rom or
- * .bin, with or without the 8 KB header some dumps have) in save/ and next
- * to the program, checks it, and takes the game's tables, sound effects and
+ * .bin, with or without the 8 KB header some dumps have) in the cabinet's
+ * /persistent/games/rom first, then in save/ and next to the program, checks it, and takes the game's tables, sound effects and
  * tunes from it.
  */
 #ifndef T2K_ROM_H

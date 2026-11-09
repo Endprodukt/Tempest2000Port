@@ -83,13 +83,20 @@ static int try_folder(const char *folder)
     return found;
 }
 
+/* The cabinet's folder for the ROMs of all its games, looked at first. */
+#define CABINET_ROMS   "/persistent/games/rom"
+#define CABINET_GAMES  "/persistent/games"
+
 int rom_load(void)
 {
     char here[1024];
+    DIR *games = opendir(CABINET_GAMES);
 
-    snprintf(s_folder, sizeof s_folder, "%s", vp_save_dir());
+    /* On the cabinet the missing ROM belongs into its ROM folder; elsewhere into save/. */
+    snprintf(s_folder, sizeof s_folder, "%s", games ? CABINET_ROMS : vp_save_dir());
+    if (games) closedir(games);
     vp_asset_path("", here, sizeof here);
-    if (!try_folder(s_folder) && !try_folder(here)) return 0;
+    if (!try_folder(CABINET_ROMS) && !try_folder(vp_save_dir()) && !try_folder(here)) return 0;
     rom_fill_tables(s_rom);
     s_problem = NULL;
     return 1;
