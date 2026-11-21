@@ -79,7 +79,7 @@ Weggelassen auf Wunsch des Nutzers: Bonuslevel und "Warp 5 levels", Pause, gleic
 Technik:
 
 9. Auf dem Automaten (Pi 5) als Paket in `/persistent/games/tempest2000/`. Das Menü des Automaten kennt seit dem Update um den 2026-10-16 Pakete und führt es selbst unter Atari (Menü-Log: `packages: tempest2000 0.1.0 (Atari)`), samt Bestenliste (`hiscores = yes`). Der von Hand angelegte Eintrag in `gamelist.ini`, die Startverweise und die Marquee-Kopie sind entfernt: Mit ihnen übersprang das Menü das Paket. Offen: Installation per USB-Stick über das Menü selbst; Lauf auf einem Pi 4.
-10. Abstimmung auf der Röhre: Im Spiel (Level 1, 64 Sterne) rund 810 Linien und 310 Strahlsprünge, 40 Bilder pro Sekunde, keine verworfenen Linien (gemessen am 2026-10-09). Ob das flimmerfrei ist, sieht nur der Nutzer.
+10. Abstimmung auf der Röhre: Im Spiel (Level 1, 64 Sterne) rund 810 Linien und 310 Strahlsprünge, 40 Bilder pro Sekunde, keine verworfenen Linien (gemessen am 2026-10-09). Ob das flimmerfrei ist, sieht nur der Nutzer. Bildrate je Board (2026-11-21, Nutzerwunsch, über die SDK ab `c08e7e8`): `game.ini` `[dvg] frame_hz = 40` (unverändert), `[beamforge] frame_hz = 50`; der Spielschritt bleibt bei 60 Hz. Gebaut für PC und Pi; auf einem BeamForge noch nicht gesehen, am USB-DVG nicht neu gemessen.
 11. Ton: Lautstärken je Effekt in `fx_level` (`src/sound.c`), nach Gehör des Nutzers: Partikel-Laser auf 35 %, Stimmen doppelt, Fluggeräusch am Level-Ende lauter. Tonhöhen und Abspielraten kommen aus dem Treiber (siehe Einschränkungen), nicht mehr aus Annahmen.
 
 ## Bekannte Einschränkungen

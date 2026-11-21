@@ -77,6 +77,7 @@ Der Weg des SDK über WSL2 mit Debian 13 (`vendor/VectorPie/sdk/tools/setup-wsl.
 - `beastly_mode`: `yes` bietet "TEMPEST 2000 BEASTLY" als eigene Spielart an (eigene Startlevel, eigene Bestenliste `save/highscores_beastly.txt`).
 - `checkpoints`: `yes` lässt nach einem verlorenen Leben nur die übrigen Gegner wiederkommen, `no` beginnt die Welle neu.
 - Eigene Musik: `music/tune1.wav` bis `tune7.wav` neben `game.ini`, siehe die Erklärung in der Datei.
+- `[dvg]` / `[beamforge]` `frame_hz`: Bilder pro Sekunde auf dem Board, von der SDK gelesen (10 bis 120). USB-DVG 40 (wie `frame_hz_board` in `src/main.c`), BeamForge 50. Der Spielschritt bleibt bei 60. Die Abschnitte müssen am Ende der Datei stehen.
 - `jump_button`: ein zweiter Eingang für den Sprung, mit seinem advmame.rc-Namen.
 
 ## Menü-Eintrag auf dem Automaten

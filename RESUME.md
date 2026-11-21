@@ -7,7 +7,7 @@
 - `tools/extract_data.py`: erzeugt `src/gen/t2k_data.c` aus `yak.s`.
 - `src/view.c`: Perspektive, Linienausgabe, Objekte (`view_solid` für Tempest-2000-Formen mit Flächenfarben, `view_vobj` für Classic-Formen), CRY-Farben. Raum wie im Original: x rechts, y nach unten, z in die Tiefe. Netzrand bei z=30, Netzende bei z=190 (`webz` ± 80). Der Betrachter steht bei z=0, Projektion 128 * x / z wie `polyo2d` in `gpu/horse.gas`.
 - `src/game.c`: Zustand, 60-Hz-Schritt, Zeichnen.
-- SDK: `vendor/VectorPie` steht auf `065d93a` (Menü-Lautstärken des Automaten). Die Musik aus den Modulen läuft als Stream (`feed_tune` in `src/sound.c`), nicht als `vp_sound_play`, sonst gälte für sie SOUND VOLUME statt MUSIC VOLUME.
+- SDK: `vendor/VectorPie` steht auf `5758bbc` (seit `c08e7e8` liest `vp_run` die Bildrate je Board aus den Abschnitten `[dvg]` und `[beamforge]` der `game.ini`). Die Musik aus den Modulen läuft als Stream (`feed_tune` in `src/sound.c`), nicht als `vp_sound_play`, sonst gälte für sie SOUND VOLUME statt MUSIC VOLUME.
 - `src/sound.c`: Effekte (`sound_fx` entspricht `fox`, Tonhöhe als Periode wie `sfx_pitch`) und Musik (`sound_tune` entspricht `modnum`).
 - `tools/extract_audio.py`: erzeugt `assets/sounds/fxNN.wav` (Raten nach dem Treiber) und kopiert die Module nach `assets/music/tuneN.mod`. CMake kopiert `assets` neben das Programm. `src/mod.c` spielt die Module im Spiel, `tools/make_vpk.sh` baut das Paket.
 - Bauen und Testen: siehe `BUILD.md`.
